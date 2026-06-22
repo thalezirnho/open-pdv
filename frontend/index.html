@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Pedidos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f4f6f9;
+        }
+
+        .kanban-col {
+            background-color: #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 75vh;
+        }
+
+        .pedido-card {
+            background-color: white;
+            border-left: 5px solid #0d6efd;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            position: relative;
+        }
+
+        .status-Pendente {
+            border-left-color: #dc3545;
+        }
+
+        .status-Preparando {
+            border-left-color: #ffc107;
+        }
+
+        .status-Pronto {
+            border-left-color: #0dcaf0;
+        }
+
+        .status-Em-Entrega {
+            border-left-color: #fd7e14;
+        }
+
+        .status-Finalizado {
+            border-left-color: #198754;
+        }
+
+        .produto-item {
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .produto-item:hover {
+            background-color: #f8f9fa;
+            transform: scale(1.02);
+        }
+
+        .cart-item {
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn-editar-card {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+
+        .btn-editar-card:hover {
+            color: #0d6efd;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Gestão de Pedidos</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link active" href="index.html">Kanban de Pedidos</a></li>
+                    <li class="nav-item"><a class="nav-link" href="cardapio.html">Gestão do Cardápio</a></li>
+                </ul>
+                <button class="btn btn-warning fw-bold" onclick="abrirPDV()">🛒 Criar Pedido</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4">
+        <div class="row align-items-center mb-3 g-2">
+            <div class="col-md-4">
+                <select id="filtroData" class="form-select border-primary" onchange="toggleRangeInputs()">
+                    <option value="hoje" selected>📅 Hoje</option>
+                    <option value="2dias">⏳ Últimos 2 dias</option>
+                    <option value="7dias">📅 Últimos 7 dias</option>
+                    <option value="range">🎯 Selecionar Período</option>
+                    <option value="todos">📋 Todos os pedidos</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-none" id="divRangeInputs">
+                <div class="input-group">
+                    <input type="date" id="dataInicio" class="form-control" onchange="renderizarKanban()">
+                    <span class="input-group-text">até</span>
+                    <input type="date" id="dataFim" class="form-control" onchange="renderizarKanban()">
+                </div>
+            </div>
+        </div>
+
+        <div class="row text-center mb-3 fw-bold">
+            <div class="col">📝 Pendente</div>
+            <div class="col">🍳 Preparando</div>
+            <div class="col">🛎️ Pronto</div>
+            <div class="col">🛵 Em Entrega</div>
+            <div class="col">✅ Finalizado</div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <div class="kanban-col" id="col-Pendente"></div>
+            </div>
+            <div class="col">
+                <div class="kanban-col" id="col-Preparando"></div>
+            </div>
+            <div class="col">
+                <div class="kanban-col" id="col-Pronto"></div>
+            </div>
+            <div class="col">
+                <div class="kanban-col" id="col-Em Entrega"></div>
+            </div>
+            <div class="col">
+                <div class="kanban-col" id="col-Finalizado"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalPDV" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">Lançar Novo Pedido</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="row g-0 h-100">
+                        <div class="col-md-8 p-4">
+                            <ul class="nav nav-pills mb-4" id="categoriasTabs" role="tablist"></ul>
+                            <div class="tab-content" id="produtosTabContent"></div>
+                        </div>
+                        <div class="col-md-4 bg-light p-4 border-start d-flex flex-column" style="min-height: 70vh;">
+                            <h5 class="mb-3">Detalhes do Pedido</h5>
+
+                            <input type="text" id="pdvCliente" class="form-control mb-2" placeholder="Nome do Cliente"
+                                required>
+                            <input type="text" id="pdvTelefone" class="form-control mb-2"
+                                placeholder="📞 Telefone / WhatsApp">
+
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <select id="pdvTipo" class="form-select" onchange="verificarEndereco()">
+                                        <option value="Comer no local">Comer no Local</option>
+                                        <option value="Retirada">Retirada</option>
+                                        <option value="Delivery">Delivery</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <select id="pdvPagamento" class="form-select">
+                                        <option value="Pix">Pix</option>
+                                        <option value="Cartão de Crédito">Cartão de Crédito</option>
+                                        <option value="Cartão de Débito">Cartão de Débito</option>
+                                        <option value="Dinheiro">Dinheiro</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div id="divEndereco" class="mb-3 d-none">
+                                <input type="text" id="pdvEndereco" class="form-control"
+                                    placeholder="📍 Endereço de Entrega Completo">
+                            </div>
+
+                            <hr>
+                            <div id="carrinhoItens" class="flex-grow-1 overflow-auto mb-3"></div>
+                            <hr>
+
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h4 class="m-0">Total:</h4>
+                                <h4 class="m-0 text-success">R$ <span id="carrinhoTotal">0.00</span></h4>
+                            </div>
+                            <button class="btn btn-success btn-lg w-100" onclick="finalizarPedido()">Confirmar
+                                Pedido</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalPersonalizarItem" tabindex="-1" style="z-index: 1060;">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title" id="persNomeProduto">Produto</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Quantidade</label>
+                        <input type="number" id="persQuantidade" class="form-control text-center" value="1" min="1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Observações</label>
+                        <textarea id="persObservacao" class="form-control" rows="2" placeholder="Opcional"></textarea>
+                    </div>
+                    <button class="btn btn-primary w-100" onclick="confirmarAdicaoItem()">Adicionar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalEditarPedido" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Pedido #<span id="editIdPedido"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Consumo</label>
+                        <select id="editTipo" class="form-select" onchange="verificarEnderecoEdit()">
+                            <option value="Comer no local">Comer no Local</option>
+                            <option value="Retirada">Retirada</option>
+                            <option value="Delivery">Delivery</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 d-none" id="divEnderecoEdit">
+                        <label class="form-label">Endereço de Entrega</label>
+                        <input type="text" id="editEndereco" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Forma de Pagamento</label>
+                        <select id="editPagamento" class="form-select">
+                            <option value="Pix">Pix</option>
+                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                            <option value="Cartão de Débito">Cartão de Débito</option>
+                            <option value="Dinheiro">Dinheiro</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary w-100" onclick="salvarEdicaoPedido()">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API_URL = "http://127.0.0.1:8000/api";
+
+        let modalidadesPDV = { principal: null, personalizar: null, editar: null };
+        let cardapioProdutos = [];
+        let carrinho = [];
+        let produtoEmPersonalizacao = null;
+        let pedidosGlobal = [];
+
+        window.onload = () => {
+            modalidadesPDV.principal = new bootstrap.Modal(document.getElementById('modalPDV'));
+            modalidadesPDV.personalizar = new bootstrap.Modal(document.getElementById('modalPersonalizarItem'));
+            modalidadesPDV.editar = new bootstrap.Modal(document.getElementById('modalEditarPedido'));
+            carregarKanban();
+
+            setInterval(atualizarContadoresTempo, 10000);
+        };
+
+        function obterProximoStatus(statusAtual, tipoConsumo) {
+            if (statusAtual === "Pendente") return "Preparando";
+            if (statusAtual === "Preparando") return "Pronto";
+            if (statusAtual === "Pronto") {
+                return tipoConsumo === "Delivery" ? "Em Entrega" : "Finalizado";
+            }
+            if (statusAtual === "Em Entrega") return "Finalizado";
+            return null;
+        }
+
+        async function carregarKanban() {
+            try {
+                const res = await fetch(`${API_URL}/pedidos/`);
+                pedidosGlobal = await res.json();
+                renderizarKanban(); // Separação da lógica de renderização
+            } catch (error) {
+                console.error("Erro ao carregar kanban:", error);
+            }
+        }
+
+        // --- NOVA LÓGICA DE RENDERIZAÇÃO E FILTRO ---
+        function renderizarKanban() {
+            // Limpa todas as colunas
+            ['Pendente', 'Preparando', 'Pronto', 'Em Entrega', 'Finalizado'].forEach(status => {
+                const col = document.getElementById(`col-${status}`);
+                if (col) col.innerHTML = '';
+            });
+
+            const filtro = document.getElementById('filtroData').value;
+            const hoje = new Date();
+
+            pedidosGlobal.forEach(pedido => {
+                const dataPedido = new Date(pedido.data_criacao);
+                let deveExibir = true;
+
+                // Filtro: Apenas Hoje
+                if (filtro === 'hoje') {
+                    deveExibir = (
+                        dataPedido.getDate() === hoje.getDate() &&
+                        dataPedido.getMonth() === hoje.getMonth() &&
+                        dataPedido.getFullYear() === hoje.getFullYear()
+                    );
+                }
+
+                if (deveExibir) {
+                    const coluna = document.getElementById(`col-${pedido.status}`);
+                    if (coluna) coluna.appendChild(criarCard(pedido));
+                }
+            });
+
+            // Atualiza os contadores assim que os cards novos entrarem na tela
+            atualizarContadoresTempo();
+        }
+
+        function criarCard(pedido) {
+            const div = document.createElement('div');
+            div.className = `pedido-card status-${pedido.status.replace(" ", "-")}`;
+
+            let itensHtml = pedido.itens.map(i => {
+                let obs = i.observacao ? `<br><small class="text-danger fst-italic ms-2">- ${i.observacao}</small>` : '';
+                return `<b>${i.quantidade}x</b> ${i.nome_produto} ${obs}`;
+            }).join('<br>');
+
+            let telefoneHtml = pedido.cliente_telefone ? `<small class="text-muted d-block mt-1">📞 ${pedido.cliente_telefone}</small>` : '';
+            let enderecoHtml = pedido.tipo_consumo === 'Delivery' && pedido.endereco_entrega ? `<small class="text-primary d-block mt-1">📍 ${pedido.endereco_entrega}</small>` : '';
+
+            // Formatação da Data e Hora juntas
+            const dataObjeto = new Date(pedido.data_criacao);
+            const dataFormatada = dataObjeto.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            const horaFormatada = dataObjeto.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            div.innerHTML = `
+            <span class="btn-editar-card" onclick="abrirModalEditar(${pedido.id})" title="Editar Pedido">✏️</span>
+            <div class="d-flex justify-content-between mb-2 mt-2">
+                <span class="badge bg-dark">#${pedido.id} - ${pedido.tipo_consumo}</span>
+                <span class="badge bg-secondary">${pedido.forma_pagamento}</span>
+            </div>
+            <h5 class="mb-0">${pedido.cliente_nome}</h5>
+            ${telefoneHtml}
+            ${enderecoHtml}
+            <div class="mb-2 mt-2 small text-dark lh-sm">${itensHtml}</div>
+            
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <p class="fw-bold m-0 text-success">R$ ${pedido.valor_total.toFixed(2)}</p>
+                
+                <div class="small">
+                    <span class="text-muted me-1">${dataFormatada} às ${horaFormatada}</span>
+                    <span class="badge timer-badge border" data-criacao="${pedido.data_criacao}" data-status="${pedido.status}">⏱️ -- min</span>
+                </div>
+            </div>
+        `;
+
+            const proxStatus = obterProximoStatus(pedido.status, pedido.tipo_consumo);
+            if (proxStatus) {
+                const btn = document.createElement('button');
+                btn.className = "btn btn-sm btn-outline-primary w-100 mt-1";
+                btn.innerText = `Avançar para ${proxStatus}`;
+                btn.onclick = () => avançarStatus(pedido.id, proxStatus);
+                div.appendChild(btn);
+            }
+            return div;
+        }
+
+        function atualizarContadoresTempo() {
+            const agora = new Date();
+            document.querySelectorAll('.timer-badge').forEach(badge => {
+                const dataCriacao = new Date(badge.getAttribute('data-criacao'));
+                const status = badge.getAttribute('data-status');
+
+                const diferencaMilissegundos = agora - dataCriacao;
+                const minutosDecorridos = Math.floor(diferencaMilissegundos / 60000);
+
+                badge.innerText = `⏱️ ${minutosDecorridos} min`;
+
+                badge.classList.remove('bg-light', 'text-dark', 'bg-warning', 'bg-danger', 'text-white', 'bg-secondary');
+
+                if (status === 'Finalizado') {
+                    badge.classList.add('bg-secondary', 'text-white');
+                } else {
+                    if (minutosDecorridos > 40) {
+                        badge.classList.add('bg-danger', 'text-white');
+                    } else if (minutosDecorridos >= 25) {
+                        badge.classList.add('bg-warning', 'text-dark');
+                    } else {
+                        badge.classList.add('bg-light', 'text-dark');
+                    }
+                }
+            });
+        }
+
+        async function avançarStatus(pedidoId, novoStatus) {
+            await fetch(`${API_URL}/pedidos/${pedidoId}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: novoStatus })
+            });
+            carregarKanban();
+        }
+
+        function abrirModalEditar(pedidoId) {
+            const pedido = pedidosGlobal.find(p => p.id === pedidoId);
+            if (!pedido) return;
+
+            document.getElementById('editIdPedido').innerText = pedido.id;
+            document.getElementById('editTipo').value = pedido.tipo_consumo;
+            document.getElementById('editPagamento').value = pedido.forma_pagamento;
+            document.getElementById('editEndereco').value = pedido.endereco_entrega || '';
+
+            verificarEnderecoEdit();
+            modalidadesPDV.editar.show();
+        }
+
+        function verificarEnderecoEdit() {
+            const tipo = document.getElementById('editTipo').value;
+            const divEnd = document.getElementById('divEnderecoEdit');
+            tipo === 'Delivery' ? divEnd.classList.remove('d-none') : divEnd.classList.add('d-none');
+        }
+
+        async function salvarEdicaoPedido() {
+            const id = document.getElementById('editIdPedido').innerText;
+            const payload = {
+                tipo_consumo: document.getElementById('editTipo').value,
+                forma_pagamento: document.getElementById('editPagamento').value,
+                endereco_entrega: document.getElementById('editEndereco').value
+            };
+
+            if (payload.tipo_consumo === 'Delivery' && !payload.endereco_entrega.trim()) {
+                alert("Preencha o endereço para entregas Delivery.");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/pedidos/${id}/dados`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    modalidadesPDV.editar.hide();
+                    carregarKanban();
+                } else {
+                    alert("Erro ao editar o pedido no servidor.");
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function verificarEndereco() {
+            const tipo = document.getElementById('pdvTipo').value;
+            const divEnd = document.getElementById('divEndereco');
+            tipo === 'Delivery' ? divEnd.classList.remove('d-none') : divEnd.classList.add('d-none');
+        }
+
+        async function abrirPDV() {
+            carrinho = [];
+            atualizarCarrinhoVisual();
+            document.getElementById('pdvCliente').value = '';
+            document.getElementById('pdvTelefone').value = '';
+            document.getElementById('pdvEndereco').value = '';
+            verificarEndereco();
+
+            const resCat = await fetch(`${API_URL}/categorias/`);
+            const categorias = await resCat.json();
+            const resProd = await fetch(`${API_URL}/produtos/`);
+            cardapioProdutos = await resProd.json();
+
+            renderizarCardapioPDV(categorias, cardapioProdutos);
+            modalidadesPDV.principal.show();
+        }
+
+        function renderizarCardapioPDV(categorias, produtos) {
+            const tabs = document.getElementById('categoriasTabs');
+            const content = document.getElementById('produtosTabContent');
+            tabs.innerHTML = '';
+            content.innerHTML = '';
+
+            categorias.forEach((cat, index) => {
+                const isActive = index === 0 ? 'active' : '';
+                tabs.innerHTML += `
+                <li class="nav-item">
+                    <button class="nav-link ${isActive}" data-bs-toggle="pill" data-bs-target="#cat-${cat.id}">${cat.nome}</button>
+                </li>
+            `;
+                let produtosDaCategoria = produtos.filter(p => p.categoria_id === cat.id && p.disponivel);
+                let produtosHtml = produtosDaCategoria.map(p => `
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100 produto-item" onclick="iniciarAdicaoItem(${p.id})">
+                        <div class="card-body d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">${p.nome}</h6>
+                                <small class="text-muted">R$ ${p.preco.toFixed(2)}</small>
+                            </div>
+                            <span class="fs-4 text-success">+</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+                content.innerHTML += `
+                <div class="tab-pane fade show ${isActive}" id="cat-${cat.id}">
+                    <div class="row">${produtosHtml || '<p class="text-muted">Nenhum produto disponível.</p>'}</div>
+                </div>
+            `;
+            });
+        }
+
+        function iniciarAdicaoItem(produtoId) {
+            produtoEmPersonalizacao = cardapioProdutos.find(p => p.id === produtoId);
+            document.getElementById('persNomeProduto').innerText = produtoEmPersonalizacao.nome;
+            document.getElementById('persQuantidade').value = 1;
+            document.getElementById('persObservacao').value = '';
+            modalidadesPDV.personalizar.show();
+        }
+
+        function confirmarAdicaoItem() {
+            const qtd = parseInt(document.getElementById('persQuantidade').value);
+            const obs = document.getElementById('persObservacao').value.trim();
+
+            carrinho.push({
+                produto_id: produtoEmPersonalizacao.id,
+                nome_produto: produtoEmPersonalizacao.nome,
+                preco_unitario: produtoEmPersonalizacao.preco,
+                quantidade: qtd,
+                observacao: obs || null
+            });
+
+            modalidadesPDV.personalizar.hide();
+            atualizarCarrinhoVisual();
+        }
+
+        function removerDoCarrinho(index) {
+            carrinho.splice(index, 1);
+            atualizarCarrinhoVisual();
+        }
+
+        function atualizarCarrinhoVisual() {
+            const div = document.getElementById('carrinhoItens');
+            const spanTotal = document.getElementById('carrinhoTotal');
+
+            if (carrinho.length === 0) {
+                div.innerHTML = '<p class="text-muted text-center mt-5">O carrinho está vazio</p>';
+                spanTotal.innerText = "0.00";
+                return;
+            }
+
+            let total = 0;
+            div.innerHTML = carrinho.map((item, index) => {
+                let subtotal = item.quantidade * item.preco_unitario;
+                total += subtotal;
+                let obs = item.observacao ? `<br><small class="text-danger">${item.observacao}</small>` : '';
+                return `
+                <div class="cart-item d-flex justify-content-between align-items-start">
+                    <div>
+                        <strong>${item.quantidade}x ${item.nome_produto}</strong>
+                        ${obs}
+                        <div class="text-muted small">R$ ${item.preco_unitario.toFixed(2)} cada</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="fw-bold">R$ ${subtotal.toFixed(2)}</div>
+                        <button class="btn btn-sm btn-link text-danger p-0" onclick="removerDoCarrinho(${index})">Remover</button>
+                    </div>
+                </div>
+            `;
+            }).join('');
+
+            spanTotal.innerText = total.toFixed(2);
+        }
+
+        async function finalizarPedido() {
+            const nome = document.getElementById('pdvCliente').value.trim();
+            const tipo = document.getElementById('pdvTipo').value;
+            const endereco = document.getElementById('pdvEndereco').value.trim();
+
+            if (!nome || carrinho.length === 0) {
+                alert("Preencha o nome do cliente e adicione itens ao carrinho!");
+                return;
+            }
+
+            if (tipo === 'Delivery' && !endereco) {
+                alert("Pedidos Delivery exigem o preenchimento do endereço!");
+                return;
+            }
+
+            const payload = {
+                cliente_nome: nome,
+                cliente_telefone: document.getElementById('pdvTelefone').value.trim() || null,
+                endereco_entrega: endereco || null,
+                origem: "balcao",
+                tipo_consumo: tipo,
+                forma_pagamento: document.getElementById('pdvPagamento').value,
+                itens: carrinho,
+                valor_total: parseFloat(document.getElementById('carrinhoTotal').innerText)
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/pedidos/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) {
+                    alert("O servidor recusou o pedido.");
+                    return;
+                }
+                modalidadesPDV.principal.hide();
+                carregarKanban();
+            } catch (error) {
+                alert("Erro de comunicação com a API.");
+            }
+        }
+
+        // Função para mostrar/esconder inputs de data
+        function toggleRangeInputs() {
+            const div = document.getElementById('divRangeInputs');
+            const filtro = document.getElementById('filtroData').value;
+            div.classList.toggle('d-none', filtro !== 'range');
+            renderizarKanban();
+        }
+
+        // Lógica de filtragem refinada
+        function renderizarKanban() {
+            ['Pendente', 'Preparando', 'Pronto', 'Em Entrega', 'Finalizado'].forEach(s => document.getElementById(`col-${s}`).innerHTML = '');
+
+            const filtro = document.getElementById('filtroData').value;
+            const agora = new Date();
+
+            pedidosGlobal.forEach(pedido => {
+                const dataPedido = new Date(pedido.data_criacao);
+                let deveExibir = false;
+
+                if (filtro === 'hoje') {
+                    deveExibir = dataPedido.toDateString() === agora.toDateString();
+                } else if (filtro === '2dias') {
+                    const doisDiasAtras = new Date(agora); doisDiasAtras.setDate(agora.getDate() - 2);
+                    deveExibir = dataPedido >= doisDiasAtras;
+                } else if (filtro === '7dias') {
+                    const seteDiasAtras = new Date(agora); seteDiasAtras.setDate(agora.getDate() - 7);
+                    deveExibir = dataPedido >= seteDiasAtras;
+                } else if (filtro === 'range') {
+                    const inicio = new Date(document.getElementById('dataInicio').value + 'T00:00:00');
+                    const fim = new Date(document.getElementById('dataFim').value + 'T23:59:59');
+                    deveExibir = dataPedido >= inicio && dataPedido <= fim;
+                } else {
+                    deveExibir = true;
+                }
+
+                if (deveExibir) {
+                    const coluna = document.getElementById(`col-${pedido.status}`);
+                    if (coluna) coluna.appendChild(criarCard(pedido));
+                }
+            });
+            atualizarContadoresTempo();
+        }
+
+
+    </script>
+</body>
+
+</html>
