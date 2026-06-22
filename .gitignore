@@ -94,3 +94,7 @@ instance/
 # Arquivos de teste
 .tox/
 .hypothesis/
+
+# Imagens
+*.png
+*.jpg
