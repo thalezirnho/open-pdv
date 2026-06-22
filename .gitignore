@@ -98,3 +98,7 @@ instance/
 # Imagens
 *.png
 *.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
